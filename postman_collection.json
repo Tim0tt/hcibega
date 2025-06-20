@@ -1,0 +1,161 @@
+{
+	"info": {
+		"_postman_id": "attendance-concurrency-test",
+		"name": "HCI Project - Attendance Concurrency Test",
+		"description": "Collection untuk testing concurrent access pada sistem attendance Zoom",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Get Employees",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/ga/employees",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"ga",
+						"employees"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Zoom Join - Single Employee",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Accept",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"employee_id\": 1,\n    \"zoom_link\": \"https://zoom.us/j/123456789\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/ga/zoom-join",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"ga",
+						"zoom-join"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Zoom Join - Variable Employee (For Runner)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Accept",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"employee_id\": {{employee_id}},\n    \"zoom_link\": \"https://zoom.us/j/123456789\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/ga/zoom-join",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"ga",
+						"zoom-join"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Manual Attendance",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Accept",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"employee_id\": 1,\n    \"date\": \"2025-01-15\",\n    \"status\": \"Hadir\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/ga/morning-reflections",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"ga",
+						"morning-reflections"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Morning Reflections",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/ga/morning-reflections",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"ga",
+						"morning-reflections"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost/hci_project/public",
+			"type": "string"
+		}
+	]
+}

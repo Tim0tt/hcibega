@@ -1,12 +1,15 @@
 <?php
      namespace App\Http\Controllers\Api;
      use App\Http\Controllers\Controller;
-     use App\Models\Employee;
-     use App\Models\MorningReflection;
-     use App\Models\Leave;
-     use Illuminate\Http\Request;
-     use Illuminate\Support\Facades\Validator;
-     use Carbon\Carbon;
+use App\Models\Employee;
+use App\Models\MorningReflection;
+use App\Models\Leave;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
+use Exception;
 
      class GeneralAffairController extends Controller
      {
@@ -18,72 +21,172 @@
          }
 
          // Store morning reflection attendance manually (Bagian A)
-         public function storeMorningReflection(Request $request)
-         {
-             $validator = Validator::make($request->all(), [
-                 'employee_id' => 'required|exists:employees,id',
-                 'date' => 'required|date',
-                 'status' => 'required|in:Hadir,Absen,Terlambat',
-             ]);
+    public function storeMorningReflection(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'employee_id' => 'required|exists:employees,id',
+            'date' => 'required|date',
+            'status' => 'required|in:Hadir,Absen,Terlambat',
+        ]);
 
-             if ($validator->fails()) {
-                 return response()->json(['errors' => $validator->errors()], 422);
-             }
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
 
-             // Cek duplikasi absensi
-             if (MorningReflection::where('employee_id', $request->employee_id)->where('date', $request->date)->exists()) {
-                 return response()->json(['errors' => ['date' => 'Absensi untuk pegawai ini pada tanggal ini sudah ada.']], 422);
-             }
-
-             $morningReflection = MorningReflection::create($request->all());
-             return response()->json(['data' => $morningReflection, 'message' => 'Absensi berhasil disimpan'], 201);
-         }
+        try {
+            DB::beginTransaction();
+            
+            // Use firstOrCreate to handle race conditions atomically
+            $morningReflection = MorningReflection::firstOrCreate(
+                [
+                    'employee_id' => $request->employee_id,
+                    'date' => $request->date
+                ],
+                [
+                    'status' => $request->status,
+                    'join_time' => null
+                ]
+            );
+            
+            // Check if record was just created or already existed
+            if (!$morningReflection->wasRecentlyCreated) {
+                DB::rollBack();
+                return response()->json([
+                    'errors' => ['date' => 'Absensi untuk pegawai ini pada tanggal ini sudah ada.']
+                ], 422);
+            }
+            
+            DB::commit();
+            
+            Log::info('Manual attendance recorded', [
+                'employee_id' => $request->employee_id,
+                'date' => $request->date,
+                'status' => $request->status
+            ]);
+            
+            return response()->json([
+                'data' => $morningReflection,
+                'message' => 'Absensi berhasil disimpan'
+            ], 201);
+            
+        } catch (Exception $e) {
+            DB::rollBack();
+            
+            Log::error('Error storing manual attendance', [
+                'employee_id' => $request->employee_id,
+                'date' => $request->date,
+                'error' => $e->getMessage()
+            ]);
+            
+            return response()->json([
+                'errors' => ['system' => 'Terjadi kesalahan sistem. Silakan coba lagi.']
+            ], 500);
+        }
+    }
 
          // Record Zoom join for morning worship (Bagian A - Zoom Integration)
-         public function recordZoomJoin(Request $request)
-         {
-             $validator = Validator::make($request->all(), [
-                 'employee_id' => 'required|exists:employees,id',
-                 'zoom_link' => 'nullable|url', // Opsional, untuk mencatat link Zoom
-             ]);
+    public function recordZoomJoin(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'employee_id' => 'required|exists:employees,id',
+            'zoom_link' => 'nullable|url', // Opsional, untuk mencatat link Zoom
+        ]);
 
-             if ($validator->fails()) {
-                 return response()->json(['errors' => $validator->errors()], 422);
-             }
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
 
-             // Cek hari (Senin, Rabu, Jumat)
-             $now = Carbon::now();
-             $dayOfWeek = $now->dayOfWeek; // 1 = Senin, 3 = Rabu, 5 = Jumat
-             if (!in_array($dayOfWeek, [1, 3, 5])) {
-                 return response()->json(['errors' => ['day' => 'Worship pagi hanya diadakan pada Senin, Rabu, dan Jumat.']], 422);
-             }
+        // Use single timestamp for consistency
+        $now = Carbon::now();
+        $date = $now->toDateString();
+        $dayOfWeek = $now->dayOfWeek; // 1 = Senin, 3 = Rabu, 5 = Jumat
+        
+        // Cek hari (Senin, Rabu, Jumat)
+        if (!in_array($dayOfWeek, [1, 3, 5])) {
+            return response()->json([
+                'errors' => ['day' => 'Worship pagi hanya diadakan pada Senin, Rabu, dan Jumat.']
+            ], 422);
+        }
 
-             // Cek duplikasi absensi untuk hari ini
-             $date = $now->toDateString();
-             if (MorningReflection::where('employee_id', $request->employee_id)->where('date', $date)->exists()) {
-                 return response()->json(['errors' => ['date' => 'Absensi untuk pegawai ini hari ini sudah ada.']], 422);
-             }
-
-             // Tentukan status berdasarkan waktu klik
-             $joinTime = $now;
-             $cutoffTime = Carbon::today()->setTime(7, 28); // 07:28
-             $status = $joinTime->lte($cutoffTime) ? 'Hadir' : 'Terlambat';
-
-             // Simpan absensi
-             $morningReflection = MorningReflection::create([
-                 'employee_id' => $request->employee_id,
-                 'date' => $date,
-                 'status' => $status,
-                 'join_time' => $joinTime,
-             ]);
-
-             // Kembalikan data absensi dan link Zoom
-             return response()->json([
-                 'data' => $morningReflection,
-                 'message' => 'Absensi Zoom berhasil dicatat',
-                 'zoom_link' => $request->zoom_link ?? 'https://zoom.us/j/meeting'
-             ], 201);
-         }
+        try {
+            DB::beginTransaction();
+            
+            // Tentukan status berdasarkan waktu klik
+            $cutoffTime = Carbon::today()->setTime(7, 28); // 07:28
+            $status = $now->lte($cutoffTime) ? 'Hadir' : 'Terlambat';
+            
+            // Use firstOrCreate to handle race conditions atomically
+            $morningReflection = MorningReflection::firstOrCreate(
+                [
+                    'employee_id' => $request->employee_id,
+                    'date' => $date
+                ],
+                [
+                    'status' => $status,
+                    'join_time' => $now
+                ]
+            );
+            
+            // Check if record was just created or already existed
+            if (!$morningReflection->wasRecentlyCreated) {
+                DB::rollBack();
+                
+                Log::warning('Duplicate Zoom attendance attempt', [
+                    'employee_id' => $request->employee_id,
+                    'date' => $date,
+                    'existing_status' => $morningReflection->status,
+                    'existing_join_time' => $morningReflection->join_time
+                ]);
+                
+                return response()->json([
+                    'errors' => ['date' => 'Absensi untuk pegawai ini hari ini sudah ada.'],
+                    'existing_data' => [
+                        'status' => $morningReflection->status,
+                        'join_time' => $morningReflection->join_time,
+                        'date' => $morningReflection->date
+                    ]
+                ], 422);
+            }
+            
+            DB::commit();
+            
+            Log::info('Zoom attendance recorded successfully', [
+                'employee_id' => $request->employee_id,
+                'date' => $date,
+                'status' => $status,
+                'join_time' => $now->toDateTimeString()
+            ]);
+            
+            // Kembalikan data absensi dan link Zoom
+            return response()->json([
+                'data' => $morningReflection,
+                'message' => 'Absensi Zoom berhasil dicatat',
+                'zoom_link' => $request->zoom_link ?? 'https://zoom.us/j/meeting'
+            ], 201);
+            
+        } catch (Exception $e) {
+            DB::rollBack();
+            
+            Log::error('Error recording Zoom attendance', [
+                'employee_id' => $request->employee_id,
+                'date' => $date,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            // Check if it's a duplicate key error (unique constraint violation)
+            if (str_contains($e->getMessage(), 'unique_employee_date_attendance') || 
+                str_contains($e->getMessage(), 'Duplicate entry')) {
+                return response()->json([
+                    'errors' => ['date' => 'Absensi untuk pegawai ini hari ini sudah ada.']
+                ], 422);
+            }
+            
+            return response()->json([
+                'errors' => ['system' => 'Terjadi kesalahan sistem. Silakan coba lagi.']
+            ], 500);
+        }
+    }
 
          // Get all morning reflections for dashboard (Bagian C)
          public function getMorningReflections()
