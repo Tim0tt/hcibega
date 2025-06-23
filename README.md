@@ -1,66 +1,244 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# HCI Project - Sistem Absensi Renungan Pagi
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+## Overview
+Sistem absensi digital untuk renungan pagi perusahaan dengan fitur Zoom integration, rate limiting, dan validasi waktu. Sistem ini dirancang untuk menangani concurrent access dan memastikan data integrity.
 
-## About Laravel
+## Fitur Utama
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+### 1. Manajemen Karyawan
+- Daftar karyawan untuk dropdown selection
+- CRUD operations untuk data karyawan
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### 2. Absensi Manual (Bagian A)
+- Input absensi manual oleh admin/HR
+- Validasi data dan pencegahan duplikasi
+- Status: Hadir, Absen, Terlambat
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### 3. Absensi Zoom Integration (Bagian A)
+- Absensi otomatis melalui Zoom join
+- Validasi waktu: 07:10 - 08:00
+- Validasi hari: Senin, Rabu, Jumat
+- Auto-detect status berdasarkan waktu join (cutoff: 07:28)
+- Rate limiting: maksimal 5 percobaan per karyawan per hari
 
-## Learning Laravel
+### 4. Dashboard (Bagian C)
+- View semua data absensi renungan pagi
+- View data cuti karyawan
+- Relasi data dengan informasi karyawan
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+### 5. Keamanan & Reliability
+- Database transactions untuk data consistency
+- Unique constraints untuk mencegah duplikasi
+- Comprehensive logging untuk debugging
+- Error handling yang robust
+- Rate limiting middleware
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+## Tech Stack
+- **Backend**: Laravel 10.x
+- **Database**: MySQL
+- **Cache**: File-based caching
+- **Logging**: Laravel Log dengan multiple channels
+- **API**: RESTful API dengan JSON responses
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Quick Setup
 
-## Laravel Sponsors
+### Prerequisites
+- PHP 8.1+
+- Composer
+- MySQL
+- XAMPP/WAMP (untuk development)
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+### Installation Steps
 
-### Premium Partners
+1. **Clone & Install Dependencies**
+   ```bash
+   cd c:\xampp\htdocs\hci_project
+   composer install
+   ```
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+2. **Environment Setup**
+   ```bash
+   # File .env sudah ada dan dikonfigurasi untuk:
+   # - Database: hci
+   # - MySQL: localhost:3306
+   # - Username: root (no password)
+   ```
 
-## Contributing
+3. **Database Setup**
+   ```bash
+   # Buat database 'hci' di MySQL
+   php artisan migrate
+   php artisan db:seed
+   ```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+4. **Start Development Server**
+   ```bash
+   php artisan serve
+   # Server akan berjalan di http://localhost:8000
+   ```
 
-## Code of Conduct
+## API Endpoints
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### Base URL: `http://localhost:8000/api/ga`
 
-## Security Vulnerabilities
+| Method | Endpoint | Description | Middleware |
+|--------|----------|-------------|------------|
+| GET | `/employees` | Get all employees | - |
+| POST | `/morning-reflections` | Manual attendance entry | Rate Limit |
+| POST | `/zoom-join` | Zoom attendance entry | Rate Limit |
+| GET | `/morning-reflections` | Get all attendance data | - |
+| GET | `/leaves` | Get all leave data | - |
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### API Examples
 
-## License
+#### 1. Get Employees
+```bash
+GET /api/ga/employees
+Response: {
+  "data": [
+    {"id": 1, "full_name": "John Doe"},
+    {"id": 2, "full_name": "Jane Smith"}
+  ]
+}
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+#### 2. Zoom Join (Success)
+```bash
+POST /api/ga/zoom-join
+Body: {
+  "employee_id": 1,
+  "zoom_link": "https://zoom.us/j/123456789"
+}
+
+Response: {
+  "data": {
+    "id": 1,
+    "employee_id": 1,
+    "date": "2025-01-16",
+    "status": "Hadir",
+    "join_time": "2025-01-16 07:25:00"
+  },
+  "message": "Absensi Zoom berhasil dicatat"
+}
+```
+
+#### 3. Rate Limit Error
+```bash
+Response (429): {
+  "errors": {
+    "rate_limit": "Terlalu banyak percobaan absensi. Silakan coba lagi nanti atau hubungi admin."
+  }
+}
+```
+
+## Testing
+
+### Postman Collection
+Gunakan file `postman_collection.json` untuk testing API endpoints.
+
+### Manual Testing Scenarios
+
+1. **Normal Flow**
+   - Test pada Senin 07:20 → Status: Hadir
+   - Test pada Rabu 07:35 → Status: Terlambat
+
+2. **Validation Errors**
+   - Test pada Selasa → Error: Hari tidak valid
+   - Test pada 06:00 → Error: Waktu tidak valid
+   - Test pada 09:00 → Error: Waktu tidak valid
+
+3. **Rate Limiting**
+   - Lakukan 6 request berturut-turut → Request ke-6 akan di-rate limit
+
+4. **Concurrency**
+   - Simulasi multiple request bersamaan untuk employee yang sama
+   - Hanya 1 request yang berhasil, sisanya akan mendapat error duplikasi
+
+## Database Schema
+
+### Tables
+
+1. **employees**
+   - id (PK)
+   - full_name
+   - timestamps
+
+2. **morning_reflections**
+   - id (PK)
+   - employee_id (FK)
+   - date
+   - status (enum: Hadir, Absen, Terlambat)
+   - join_time (nullable)
+   - timestamps
+   - UNIQUE(employee_id, date)
+
+3. **leaves**
+   - id (PK)
+   - employee_id (FK)
+   - start_date
+   - end_date
+   - status (enum: Pending, Approved, Rejected)
+   - timestamps
+
+## Monitoring & Maintenance
+
+### Logs Location
+- Application logs: `storage/logs/laravel.log`
+- Rate limiting logs: Logged dengan level WARNING
+- Error logs: Logged dengan level ERROR
+
+### Cache Management
+- Rate limiting menggunakan file-based cache
+- Cache keys: `attendance_attempt_{employee_id}_{date}`
+- Auto-expire pada akhir hari
+
+### Database Maintenance
+- Regular backup database `hci`
+- Monitor unique constraint violations
+- Clean up old log files secara berkala
+
+## Production Deployment
+
+### Environment Configuration
+```env
+APP_ENV=production
+APP_DEBUG=false
+LOG_LEVEL=warning
+CACHE_DRIVER=redis  # Recommended for production
+```
+
+### Security Checklist
+- [ ] Set APP_DEBUG=false
+- [ ] Configure proper database credentials
+- [ ] Set up SSL/HTTPS
+- [ ] Configure rate limiting sesuai kebutuhan
+- [ ] Set up log rotation
+- [ ] Configure backup strategy
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Database Connection Error**
+   - Pastikan MySQL service berjalan
+   - Cek kredensial database di .env
+   - Pastikan database 'hci' sudah dibuat
+
+2. **Rate Limit Issues**
+   - Clear cache: `php artisan cache:clear`
+   - Cek log untuk detail rate limiting
+
+3. **Migration Errors**
+   - Drop dan recreate database jika diperlukan
+   - Jalankan `php artisan migrate:fresh --seed`
+
+### Support
+Untuk pertanyaan teknis atau bug report, silakan cek:
+- Application logs di `storage/logs/`
+- Error details di response API
+- Database constraint violations
+
+## Documentation Files
+- `CONCURRENCY_FIX_README.md` - Detail perbaikan race condition
+- `TIME_VALIDATION_UPDATE.md` - Detail implementasi validasi waktu
+- `postman_collection.json` - Collection untuk API testing

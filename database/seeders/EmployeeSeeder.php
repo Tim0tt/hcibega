@@ -14,7 +14,7 @@ class EmployeeSeeder extends Seeder
     public function run(): void
     {
         // Clear existing data
-        DB::table('employees')->truncate();
+        DB::table('employees')->delete();
         
         // Create test employees for concurrent testing
         $employees = [

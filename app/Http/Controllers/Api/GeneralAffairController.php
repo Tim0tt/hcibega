@@ -90,6 +90,7 @@ use Exception;
         $validator = Validator::make($request->all(), [
             'employee_id' => 'required|exists:employees,id',
             'zoom_link' => 'nullable|url', // Opsional, untuk mencatat link Zoom
+            'skip_time_validation' => 'nullable|boolean', // Parameter untuk testing
         ]);
 
         if ($validator->fails()) {
@@ -101,11 +102,25 @@ use Exception;
         $date = $now->toDateString();
         $dayOfWeek = $now->dayOfWeek; // 1 = Senin, 3 = Rabu, 5 = Jumat
         
-        // Cek hari (Senin, Rabu, Jumat)
-        if (!in_array($dayOfWeek, [1, 3, 5])) {
+        // Cek hari (Senin, Rabu, Jumat) - bisa dilewati untuk testing
+        $skipTimeValidation = $request->input('skip_time_validation', false);
+        
+        if (!$skipTimeValidation && !in_array($dayOfWeek, [1, 3, 5])) {
             return response()->json([
                 'errors' => ['day' => 'Worship pagi hanya diadakan pada Senin, Rabu, dan Jumat.']
             ], 422);
+        }
+
+        // Validasi waktu: hanya boleh join antara 07:10 - 08:00 (bisa dilewati untuk testing)
+        if (!$skipTimeValidation) {
+            $startTime = Carbon::today()->setTime(7, 10); // 07:10
+            $endTime = Carbon::today()->setTime(8, 0);    // 08:00
+            
+            if ($now->lt($startTime) || $now->gt($endTime)) {
+                return response()->json([
+                    'errors' => ['time' => 'Absensi Zoom hanya dapat dilakukan antara pukul 07:10 - 08:00.']
+                ], 422);
+            }
         }
 
         try {
