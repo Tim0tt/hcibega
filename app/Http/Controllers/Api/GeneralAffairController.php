@@ -111,14 +111,17 @@ use Exception;
             ], 422);
         }
 
-        // Validasi waktu: hanya boleh join antara 07:10 - 08:00 (bisa dilewati untuk testing)
-        if (!$skipTimeValidation) {
+        // Validasi waktu: hanya boleh join antara 07:10 - 07:35 (bisa dilewati untuk testing)
+        // Tambahan: bypass otomatis jika environment adalah local/testing
+        $isTestingEnvironment = config('app.env') === 'local' || config('app.env') === 'testing';
+        
+        if (!$skipTimeValidation && !$isTestingEnvironment) {
             $startTime = Carbon::today()->setTime(7, 10); // 07:10
-            $endTime = Carbon::today()->setTime(8, 0);    // 08:00
+            $endTime = Carbon::today()->setTime(7, 35);   // 07:35 - Closed
             
             if ($now->lt($startTime) || $now->gt($endTime)) {
                 return response()->json([
-                    'errors' => ['time' => 'Absensi Zoom hanya dapat dilakukan antara pukul 07:10 - 08:00.']
+                    'errors' => ['time' => 'Absensi Zoom hanya dapat dilakukan antara pukul 07:10 - 07:35.']
                 ], 422);
             }
         }
@@ -127,7 +130,8 @@ use Exception;
             DB::beginTransaction();
             
             // Tentukan status berdasarkan waktu klik
-            $cutoffTime = Carbon::today()->setTime(7, 28); // 07:28
+            // 07:10-07:30 = Hadir, 07:31-07:35 = Terlambat, >07:35 = Closed
+            $cutoffTime = Carbon::today()->setTime(7, 30); // 07:30
             $status = $now->lte($cutoffTime) ? 'Hadir' : 'Terlambat';
             
             // Use firstOrCreate to handle race conditions atomically
